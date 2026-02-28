@@ -1,10 +1,15 @@
 #include <FastLED.h>
+#include "esp_sleep.h"
+#include "driver/rtc_io.h"
 
-#define BUTTON1 41 
+#define BUTTON1 41
 #define BUTTON2 39
 #define BUTTON3 40
 #define BUTTON4 14
 #define BUTTON5 10
+
+#define TIME_UNTIL_SLEEP 5000
+#define EVENT_TIME 1000
 
 #define PINGMS 20
 #define BUZZER 42
@@ -16,11 +21,14 @@
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
 
+
 #define JOY_PIN_X 11
 #define JOY_PIN_Y 12
 
 unsigned long myTime;
-int FirstCallTime;
+int FirstBuzzerCallTime;
+int FirstSleepCallTime;
+
 
 typedef struct {
   int16_t buttons;
@@ -30,41 +38,41 @@ typedef struct {
   int16_t tilt_y;
   int16_t tilt_z;
 } joystick_packet_t;
-joystick_packet_t joystick = {0};
+joystick_packet_t joystick = { 0 };
 
 CRGB leds[NUM_LEDS];
 CRGB GetCustomColor(unsigned long time) {
   //Periods in milliseconds
-  const float redPeriod   = 1000.0;
+  const float redPeriod = 1000.0;
   const float greenPeriod = 2000.0;
-  const float bluePeriod  = 3000.0;
+  const float bluePeriod = 3000.0;
 
   //Convert time -> angle [0,2PI]
-  float redAngle   = (time % (unsigned long)redPeriod)   * TWO_PI / redPeriod;
+  float redAngle = (time % (unsigned long)redPeriod) * TWO_PI / redPeriod;
   float greenAngle = (time % (unsigned long)greenPeriod) * TWO_PI / greenPeriod;
-  float blueAngle  = (time % (unsigned long)bluePeriod)  * TWO_PI / bluePeriod;
+  float blueAngle = (time % (unsigned long)bluePeriod) * TWO_PI / bluePeriod;
 
   //sin() returns [-1,1] -> shift to [0,255]
-  uint8_t red   = (sin(redAngle)   * 0.5 + 0.5) * 255;
-  uint8_t green = (sin(greenAngle) * 0.5 + 0.5) * 255;
-  uint8_t blue  = (sin(blueAngle)  * 0.5 + 0.5) * 255;
+  uint8_t red = floor((sin(redAngle) * 0.5 + 0.5) * 256);
+  uint8_t green = floor((sin(greenAngle) * 0.5 + 0.5) * 256);
+  uint8_t blue = floor((sin(blueAngle) * 0.5 + 0.5) * 256);
 
   return CRGB(red, green, blue);
 }
 
-void userFeedback(bool IsFirstCall){
+void userFeedback(bool IsFirstCall) {
   int currentTime = millis();
-  if(IsFirstCall){
-    tone(BUZZER, 1000 );
+  if (IsFirstCall) {
+    tone(BUZZER, 1000);
     digitalWrite(VIBROMOTOR, HIGH);
-    FirstCallTime=millis();
-  }else if(currentTime>=FirstCallTime+1000){
+    FirstBuzzerCallTime = millis();
+  } else if (currentTime >= FirstBuzzerCallTime + EVENT_TIME) {
     noTone(BUZZER);
     digitalWrite(VIBROMOTOR, LOW);
   }
 }
 
-int buttonCliks(){
+int buttonCliks() {
   int Button1Value = !digitalRead(BUTTON1);
   int Button2Value = !digitalRead(BUTTON2);
   int Button3Value = !digitalRead(BUTTON3);
@@ -104,9 +112,22 @@ int getJoystickY() {
   return Joy_Y_val;
 }
 
+void SleepCheck(bool IsFirstCall) {
+  int currentTime = millis();
+  if (IsFirstCall) {
+    FirstBuzzerCallTime = millis();
+  } else if (currentTime >= FirstBuzzerCallTime + TIME_UNTIL_SLEEP) {
+    leds[0] = CRGB::Black;
+    FastLED.show();
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_14, 0);
+    rtc_gpio_pullup_en(GPIO_NUM_14);
+    esp_deep_sleep_start();
+  }
+}
+
 void setup() {
   pinMode(BUZZER, OUTPUT);
-  pinMode(VIBROMOTOR, OUTPUT );
+  pinMode(VIBROMOTOR, OUTPUT);
   pinMode(BUTTON1, INPUT_PULLUP);
   pinMode(BUTTON2, INPUT_PULLUP);
   pinMode(BUTTON3, INPUT_PULLUP);
@@ -115,12 +136,14 @@ void setup() {
 
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS);
   FastLED.setBrightness(BRIGHTNESS);
-  
+  SleepCheck(true);
   Serial.begin(115200);
   userFeedback(true);
 }
 
 void loop() {
+
+  SleepCheck(false);
   userFeedback(false);
   leds[0] = GetCustomColor(millis());
   FastLED.show();
@@ -128,6 +151,13 @@ void loop() {
   joystick.buttons = buttonCliks();
   joystick.joy_x = getJoystickX();
   joystick.joy_y = getJoystickY();
+
+  if (joystick.buttons > 0 && joystick.joy_x != 0 && joystick.joy_y != 0) {
+    SleepCheck(true);
+  }
+
+
+
   Serial.write((uint8_t*)&joystick, sizeof(joystick));
   delay(PINGMS);
 }
