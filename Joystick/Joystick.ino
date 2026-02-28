@@ -8,7 +8,7 @@
 #define BUTTON4 14
 #define BUTTON5 10
 
-#define TIME_UNTIL_SLEEP 5000
+#define TIME_UNTIL_SLEEP 30000
 #define EVENT_TIME 1000
 
 #define PINGMS 20
@@ -25,9 +25,9 @@
 #define JOY_PIN_X 11
 #define JOY_PIN_Y 12
 
-unsigned long myTime;
-int FirstBuzzerCallTime;
-int FirstSleepCallTime;
+
+unsigned long FirstBuzzerCallTime;
+unsigned long FirstSleepCallTime;
 
 
 typedef struct {
@@ -61,12 +61,13 @@ CRGB GetCustomColor(unsigned long time) {
 }
 
 void userFeedback(bool IsFirstCall) {
-  int currentTime = millis();
+  unsigned long currentTime = millis();
   if (IsFirstCall) {
     tone(BUZZER, 1000);
     digitalWrite(VIBROMOTOR, HIGH);
     FirstBuzzerCallTime = millis();
-  } else if (currentTime >= FirstBuzzerCallTime + EVENT_TIME) {
+  }
+  if (currentTime >= FirstBuzzerCallTime + EVENT_TIME) {
     noTone(BUZZER);
     digitalWrite(VIBROMOTOR, LOW);
   }
@@ -115,14 +116,38 @@ int getJoystickY() {
 void SleepCheck(bool IsFirstCall) {
   int currentTime = millis();
   if (IsFirstCall) {
-    FirstBuzzerCallTime = millis();
-  } else if (currentTime >= FirstBuzzerCallTime + TIME_UNTIL_SLEEP) {
+    FirstSleepCallTime = millis();
+  } else if (currentTime >= FirstSleepCallTime + TIME_UNTIL_SLEEP) {
     leds[0] = CRGB::Black;
     FastLED.show();
     esp_sleep_enable_ext0_wakeup(GPIO_NUM_14, 0);
     rtc_gpio_pullup_en(GPIO_NUM_14);
     esp_deep_sleep_start();
   }
+}
+
+void eventCheck(){
+  if(Serial.available()>0){
+  int event = Serial.read();
+  switch(event){
+    case 0x01:
+      userFeedback(true);
+      break;
+    case 0x02:
+      userFeedback(true);
+      break;
+    case 0x03:
+      userFeedback(true);
+      break;
+    case 0x04:
+      userFeedback(true);
+      break;
+    case 0x05:
+      userFeedback(true);
+      break;  
+  }
+  }
+  
 }
 
 void setup() {
@@ -142,22 +167,21 @@ void setup() {
 }
 
 void loop() {
-
+  delay(PINGMS);
   SleepCheck(false);
-  userFeedback(false);
+ 
   leds[0] = GetCustomColor(millis());
   FastLED.show();
-
+  eventCheck();
   joystick.buttons = buttonCliks();
   joystick.joy_x = getJoystickX();
   joystick.joy_y = getJoystickY();
 
-  if (joystick.buttons > 0 && joystick.joy_x != 0 && joystick.joy_y != 0) {
+  if (joystick.buttons > 0 || joystick.joy_x != 0 || joystick.joy_y != 0) {
     SleepCheck(true);
   }
-
+  userFeedback(false);
 
 
   Serial.write((uint8_t*)&joystick, sizeof(joystick));
-  delay(PINGMS);
 }
