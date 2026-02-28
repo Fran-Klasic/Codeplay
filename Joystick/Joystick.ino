@@ -1,11 +1,14 @@
-
+#define GPIO41 41
+#define GPIO39 39
+#define GPIO40 40
+#define GPIO14 14
 
 void setup() {
   // put your setup code here, to run once:
-    pinMode(41,INPUT_PULLUP);
-    pinMode(39,INPUT_PULLUP);
-    pinMode(40,INPUT_PULLUP);
-    pinMode(14,INPUT_PULLUP);
+    pinMode(GPIO41,INPUT_PULLUP);
+    pinMode(GPIO39,INPUT_PULLUP);
+    pinMode(GPIO40,INPUT_PULLUP);
+    pinMode(GPIO14,INPUT_PULLUP);
 }
 
 void loop() {
