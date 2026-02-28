@@ -1,3 +1,6 @@
+#include <Arduino_LSM6DS3.h>
+#include <FastLED.h>
+
 #define GPIO41 41
 #define GPIO39 39
 #define GPIO40 40
