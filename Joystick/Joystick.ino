@@ -1,11 +1,10 @@
+#define BUTTON1 41 
+#define BUTTON2 39
+#define BUTTON3 40
+#define BUTTON4 14
+#define PINGMS 20
 
 
-#define GPIO41 41
-#define GPIO39 39
-#define GPIO40 40
-#define GPIO14 14
-
-//Joystick data
 typedef struct {
   int16_t buttons;
   int16_t joy_x;
@@ -16,35 +15,39 @@ typedef struct {
 } joystick_packet_t;
 joystick_packet_t joystick = {0};
 
+void powerUp(){
+  tone(GPIO42, 1000);
+  delay(1000);
+  noTone(GPIO42);
+  delay(1000);
+}
+
+int buttonCliks(){
+  int Button1Value = !digitalRead(BUTTON1);
+  int Button2Value = !digitalRead(BUTTON2);
+  int Button3Value = !digitalRead(BUTTON3);
+  int Button4Value = !digitalRead(BUTTON4);
+
+  int buttons = 0b00000;
+  buttons |= Button1Value << 0;
+  buttons |= Button2Value << 1;
+  buttons |= Button3Value << 2;
+  buttons |= Button4Value << 3;
+  return buttons;
+}
+
 void setup() {
-  pinMode(GPIO41, INPUT_PULLUP);
-  pinMode(GPIO39, INPUT_PULLUP);
-  pinMode(GPIO40, INPUT_PULLUP);
-  pinMode(GPIO14, INPUT_PULLUP);
+  pinMode(BUTTON1, INPUT_PULLUP);
+  pinMode(BUTTON2, INPUT_PULLUP);
+  pinMode(BUTTON3, INPUT_PULLUP);
+  pinMode(BUTTON4, INPUT_PULLUP);
   Serial.begin(115200);
+  powerUp();
 }
 
 void loop() {
-  int Button1Value = !digitalRead(GPIO41);
-  int Button2Value = !digitalRead(GPIO39);
-  int Button3Value = !digitalRead(GPIO40);
-  int Button4Value = !digitalRead(GPIO14);
+  joystick.buttons = buttonCliks();
 
-  int buttons = 0b00000;
-  if (Button1Value) {
-    buttons |= 0b00001;
-  }
-  if (Button2Value) {
-    buttons |= 0b00100;
-  }
-  if (Button3Value) {
-    buttons |= 0b00010; 
-  }
-  if (Button4Value) {  
-    buttons |= 0b01000;
-  }
-
-  joystick.buttons= buttons;
   Serial.write((uint8_t*)&joystick, sizeof(joystick));
-  delay(10);
+  delay(PINGMS);
 }
