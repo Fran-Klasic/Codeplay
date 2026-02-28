@@ -12,6 +12,7 @@ typedef struct {
   int16_t tilt_y;
   int16_t tilt_z;
 } joystick_packet_t;
+joystick_packet_t joystick = {0};
 
 void setup() {
   // put your setup code here, to run once:
@@ -19,35 +20,43 @@ void setup() {
   pinMode(GPIO39, INPUT_PULLUP);
   pinMode(GPIO40, INPUT_PULLUP);
   pinMode(GPIO14, INPUT_PULLUP);
-  Serial.Begin(115200);
+  Serial.begin(9600);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  int Button1Value = digitalRead(41);
-  int Button2Value = digitalRead(39);
-  int Button3Value = digitalRead(40);
-  int Button4Value = digitalRead(14);
+  int Button1Value = digitalRead(GPIO41);
+  int Button2Value = digitalRead(GPIO39);
+  int Button3Value = digitalRead(GPIO40);
+  int Button4Value = digitalRead(GPIO14);
 
   Serial.print("\nButton 1: ");
-  Serial.print(Button1Value);
-  Serial.print("\nButton 2: ");
-  Serial.print(Button2Value);
-  Serial.print("\nButton 3: ");
-  Serial.print(Button3Value);
-  Serial.print("\nButton 4: ");
-  Serial.print(Button4Value);
+  Serial.print(!Button1Value);
+  Serial.print("\tButton 2: ");
+  Serial.print(!Button2Value);
+  Serial.print("\tButton 3: ");
+  Serial.print(!Button3Value);
+  Serial.print("\tButton 4: ");
+  Serial.print(!Button4Value);
+  
 
-  if (Button1Value) {
-    buttons = 0b00001;
+
+  int buttons = 0b00000;
+  if (!Button1Value) {
+    buttons += 0b00001;
+    joystick.buttons= buttons;
   }
-  if (Button2Value) {
-    buttons = 0b00010;
+  if (!Button2Value) {
+    buttons += 0b00010;
+    joystick.buttons= buttons;
   }
-  if (Button3Value) {
-    buttons = 0b00100;
+  if (!Button3Value) {
+    buttons += 0b00100;
+    joystick.buttons= buttons;
   }
-  if (Button4Value) {
-    buttons = 0b01000;
+  if (!Button4Value) {
+    buttons += 0b01000;
+    joystick.buttons= buttons;
   }
+  Serial.write((uint8_t*)&joystick, sizeof(joystick));
+
 }
